@@ -14,10 +14,12 @@ function main() {
     const res = data.toString();
 
     const arrKeys = res
-      .match(/\w+,\w+|,+\w+/g)
+      .match(/^[^""]+$/gm)
       .join('')
       .split(',');
+
     const arrValues = res.match(/".+"/gm).join().split(/","/gm);
+
     let count = 0;
     let subObj = {};
 
