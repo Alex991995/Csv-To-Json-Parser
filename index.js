@@ -1,17 +1,22 @@
 import path from 'node:path';
-import fs from 'fs';
+import { pipeline, Transform } from 'node:stream';
+import fs from 'node:fs';
 const __dirname = import.meta.dirname;
 
 const pathToCsvFile = path.join(__dirname, 'csv', 'detailed_sales_report.csv');
 const pathToJsonFile = path.join(__dirname, 'json', 'data.json');
 
+
 const readStream = fs.createReadStream(pathToCsvFile);
 const writeStream = fs.createWriteStream(pathToJsonFile);
 
-function main() {
-  let mainObj = { data: [] };
-  readStream.on('data', data => {
-    const res = data.toString();
+
+const transformStream = new Transform({
+  readableObjectMode: false,
+  writableObjectMode: false,
+
+  transform(chunk, encoding, callback) {
+    const res = chunk.toString();
 
     const arrKeys = res
       .match(/^[^""]+$/gm)
@@ -22,6 +27,7 @@ function main() {
 
     let count = 0;
     let subObj = {};
+    const mainObj = { data: [] };
 
     for (let i = 0; i < arrValues.length; i++) {
       if (count < arrKeys.length) {
@@ -41,7 +47,20 @@ function main() {
     }
     mainObj.data.push(subObj);
 
-    writeStream.write(JSON.stringify(mainObj, null, 2));
-  });
-}
-main();
+    this.push(JSON.stringify(mainObj, null, 2));
+    callback();
+  }
+});
+
+pipeline(readStream, transformStream, writeStream, err => {
+  console.log(err)
+})
+
+
+
+
+
+
+
+
+
