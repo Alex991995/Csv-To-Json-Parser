@@ -5,62 +5,62 @@ const __dirname = import.meta.dirname;
 
 const pathToCsvFile = path.join(__dirname, 'csv', 'detailed_sales_report.csv');
 const pathToJsonFile = path.join(__dirname, 'json', 'data.json');
-
-
 const readStream = fs.createReadStream(pathToCsvFile);
 const writeStream = fs.createWriteStream(pathToJsonFile);
 
+class MyTransform extends Transform {
+  #headers = [];
+  #buffer = '';
 
-const transformStream = new Transform({
-  readableObjectMode: false,
-  writableObjectMode: false,
+  _transform(chunk, encoding, callback) {
 
-  transform(chunk, encoding, callback) {
-    const res = chunk.toString();
+    let rawString = chunk.toString();
 
-    const arrKeys = res
-      .match(/^[^""]+$/gm)
-      .join('')
-      .split(',');
-
-    const arrValues = res.match(/".+"/gm).join().split(/","/gm);
-
-    let count = 0;
-    let subObj = {};
-    const mainObj = { data: [] };
-
-    for (let i = 0; i < arrValues.length; i++) {
-      if (count < arrKeys.length) {
-        const key = arrKeys[count];
-        const value = arrValues[i];
-        count++;
-        subObj[key] = value;
-      } else {
-        mainObj.data.push(subObj);
-        count = 0;
-        subObj = {};
-        const key = arrKeys[count];
-        const value = arrValues[i];
-        subObj[key] = value;
-        count++;
-      }
+    if (this.buffer) {
+      rawString = this.buffer + rawString;
     }
-    mainObj.data.push(subObj);
+    let arr = rawString.split(/\n/);
 
-    this.push(JSON.stringify(mainObj, null, 2));
-    callback();
+    let mainArray = []
+    if (arr.length === 0) {
+      callback();
+    } 
+    else {
+      if (!this.#headers.length) {
+        this.#headers = arr[0].split(',');
+
+      }
+      
+      for (let i = 1; i < arr.length; i++) {
+        const obj = {}
+        const subArr = arr[i].split(/"([^"]+)"/gm)
+
+
+
+        if(subArr.length) {
+          for (let j = 0; j < subArr.length; j++) {
+
+            if(subArr[j] != ',') {
+              obj[this.#headers[j]] = subArr[j]
+           
+            }
+        }
+      }
+      mainArray.push(obj)
+      
+        
+      
+    }
+
+
+    this.push(JSON.stringify(mainArray, null, 2));
+    callback()
   }
-});
+  }
+}
+
+const transformStream = new MyTransform();
 
 pipeline(readStream, transformStream, writeStream, err => {
-  console.log(err)
-})
-
-
-
-
-
-
-
-
-
+  console.log(err);
+});
